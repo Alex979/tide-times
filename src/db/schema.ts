@@ -7,6 +7,15 @@ import {
   text,
 } from "drizzle-orm/sqlite-core";
 
+export const tidePoolLocationsTable = sqliteTable("tide_pool_locations", {
+  slug: text().primaryKey(),
+  name: text().notNull(),
+  lat: real().notNull(),
+  lon: real().notNull(),
+  timezone: text().notNull(),
+  noaa_station_id: text().notNull(),
+});
+
 export const tidePredictionsTable = sqliteTable(
   "tide_predictions",
   {

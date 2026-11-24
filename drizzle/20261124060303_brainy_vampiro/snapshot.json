@@ -1,0 +1,138 @@
+{
+  "version": "7",
+  "dialect": "sqlite",
+  "id": "100e9e59-6ee8-49ba-8b82-8af214a1fe6d",
+  "prevIds": [
+    "d795f115-b04c-4900-8b4c-211b8bd01ef6"
+  ],
+  "ddl": [
+    {
+      "name": "tide_pool_locations",
+      "entityType": "tables"
+    },
+    {
+      "name": "tide_predictions",
+      "entityType": "tables"
+    },
+    {
+      "table": "tide_pool_locations",
+      "name": "slug",
+      "type": "text",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "entityType": "columns"
+    },
+    {
+      "table": "tide_pool_locations",
+      "name": "name",
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "entityType": "columns"
+    },
+    {
+      "table": "tide_pool_locations",
+      "name": "lat",
+      "type": "real",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "entityType": "columns"
+    },
+    {
+      "table": "tide_pool_locations",
+      "name": "lon",
+      "type": "real",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "entityType": "columns"
+    },
+    {
+      "table": "tide_pool_locations",
+      "name": "timezone",
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "entityType": "columns"
+    },
+    {
+      "table": "tide_pool_locations",
+      "name": "noaa_station_id",
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "entityType": "columns"
+    },
+    {
+      "table": "tide_predictions",
+      "name": "noaa_station_id",
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "entityType": "columns"
+    },
+    {
+      "table": "tide_predictions",
+      "name": "timestamp",
+      "type": "integer",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "entityType": "columns"
+    },
+    {
+      "table": "tide_predictions",
+      "name": "height_ft",
+      "type": "real",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "entityType": "columns"
+    },
+    {
+      "table": "tide_predictions",
+      "name": "last_updated",
+      "type": "integer",
+      "notNull": true,
+      "autoincrement": false,
+      "default": "(unixepoch())",
+      "generated": null,
+      "entityType": "columns"
+    },
+    {
+      "table": "tide_predictions",
+      "name": "tide_predictions_pk",
+      "columns": [
+        "noaa_station_id",
+        "timestamp"
+      ],
+      "nameExplicit": false,
+      "entityType": "pks"
+    },
+    {
+      "table": "tide_pool_locations",
+      "name": "tide_pool_locations_pk",
+      "columns": [
+        "slug"
+      ],
+      "nameExplicit": false,
+      "entityType": "pks"
+    }
+  ],
+  "renames": []
+}
