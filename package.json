@@ -14,8 +14,10 @@
     "db:generate": "drizzle-kit generate",
     "db:migrate:local": "wrangler d1 migrations apply tide-times --local",
     "db:migrate:remote": "wrangler d1 migrations apply tide-times --remote",
-    "db:seed:local": "bunx tsx src/scripts/seed.ts",
-    "db:seed:remote": "bunx tsx src/scripts/seed.ts --remote"
+    "db:seed:local": "tsx src/scripts/seed.ts",
+    "db:seed:remote": "tsx src/scripts/seed.ts --remote",
+    "ingest:local": "tsx src/scripts/ingestion.ts",
+    "ingest:remote": "tsx src/scripts/ingestion.ts --remote"
   },
   "dependencies": {
     "@tailwindcss/vite": "^4.1.18",
