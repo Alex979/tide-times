@@ -1,0 +1,65 @@
+{
+  "version": "7",
+  "dialect": "sqlite",
+  "id": "19aea4e1-e312-4f03-8551-fd57324b8c21",
+  "prevIds": [
+    "00000000-0000-0000-0000-000000000000"
+  ],
+  "ddl": [
+    {
+      "name": "tide_predictions",
+      "entityType": "tables"
+    },
+    {
+      "table": "tide_predictions",
+      "name": "noaa_station_id",
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "entityType": "columns"
+    },
+    {
+      "table": "tide_predictions",
+      "name": "timestamp",
+      "type": "integer",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "entityType": "columns"
+    },
+    {
+      "table": "tide_predictions",
+      "name": "height_ft",
+      "type": "real",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "entityType": "columns"
+    },
+    {
+      "table": "tide_predictions",
+      "name": "last_updated",
+      "type": "integer",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "entityType": "columns"
+    },
+    {
+      "table": "tide_predictions",
+      "name": "tide_predictions_pk",
+      "columns": [
+        "noaa_station_id",
+        "timestamp"
+      ],
+      "nameExplicit": false,
+      "entityType": "pks"
+    }
+  ],
+  "renames": []
+}
