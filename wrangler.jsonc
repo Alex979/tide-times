@@ -1,0 +1,18 @@
+{
+	"$schema": "node_modules/wrangler/config-schema.json",
+	"name": "tide-times",
+	"compatibility_date": "2025-09-02",
+	"compatibility_flags": [
+		"nodejs_compat"
+	],
+	"main": "@tanstack/react-start/server-entry",
+	"d1_databases": [
+		{
+			"binding": "tide_times",
+			"database_name": "tide-times",
+			"database_id": "96c99cc5-fbb8-4339-ad94-fd39a65323c3",
+			"migrations_dir": "drizzle",
+			"migrations_pattern": "drizzle/*/migration.sql"
+		}
+	]
+}
