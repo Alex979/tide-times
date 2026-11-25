@@ -1,6 +1,12 @@
 
 @import "tailwindcss";
 
+@theme static {
+  --color-score-low: var(--color-sky-100);
+  --color-score-mid: var(--color-sky-300);
+  --color-score-high: var(--color-sky-500);
+}
+
 * {
   box-sizing: border-box;
 }
