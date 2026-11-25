@@ -1,6 +1,6 @@
 import type { Database } from "#/db";
 import { tidePoolLocationsTable, tidePredictionsTable } from "#/db/schema";
-import { scoreTidePoolTimestamps } from "#/lib/tide-scores";
+import { scoreTidePoolTimestamps } from "./tide-scores";
 import { and, eq, gte, lt } from "drizzle-orm";
 
 // Number of days after current local date to return tide pool scores.
@@ -27,9 +27,7 @@ export async function getLocationTideScores(
     await db
       .select()
       .from(tidePoolLocationsTable)
-      .where(
-        eq(tidePoolLocationsTable.slug, locationSlug.toLowerCase().trim()),
-      )
+      .where(eq(tidePoolLocationsTable.slug, locationSlug.toLowerCase().trim()))
       .limit(1)
   ).at(0);
 

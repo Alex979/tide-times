@@ -1,6 +1,6 @@
 import { createCssColorScale } from "#/lib/color-scale";
-import { getLocationTideScoresFn } from "#/server/tide-scores";
-import type { LocationTideScores } from "#/services/tide-scores";
+import { getLocationTideScoresFn } from "#/lib/tide-scores.function";
+import type { LocationTideScores } from "#/lib/tide-scores.server";
 import { createFileRoute } from "@tanstack/react-router";
 import { useMemo } from "react";
 

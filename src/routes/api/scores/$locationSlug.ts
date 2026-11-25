@@ -1,5 +1,5 @@
 import { createDb } from "#/db";
-import { getLocationTideScores } from "#/services/tide-scores";
+import { getLocationTideScores } from "#/lib/tide-scores.server";
 import { createFileRoute } from "@tanstack/react-router";
 import { env } from "cloudflare:workers";
 
