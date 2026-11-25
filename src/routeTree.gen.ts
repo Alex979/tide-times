@@ -10,11 +10,17 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as LocationLocationSlugRouteImport } from './routes/location/$locationSlug'
 import { Route as ApiScoresLocationSlugRouteImport } from './routes/api/scores/$locationSlug'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LocationLocationSlugRoute = LocationLocationSlugRouteImport.update({
+  id: '/location/$locationSlug',
+  path: '/location/$locationSlug',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiScoresLocationSlugRoute = ApiScoresLocationSlugRouteImport.update({
@@ -25,27 +31,31 @@ const ApiScoresLocationSlugRoute = ApiScoresLocationSlugRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/location/$locationSlug': typeof LocationLocationSlugRoute
   '/api/scores/$locationSlug': typeof ApiScoresLocationSlugRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/location/$locationSlug': typeof LocationLocationSlugRoute
   '/api/scores/$locationSlug': typeof ApiScoresLocationSlugRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/location/$locationSlug': typeof LocationLocationSlugRoute
   '/api/scores/$locationSlug': typeof ApiScoresLocationSlugRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/api/scores/$locationSlug'
+  fullPaths: '/' | '/location/$locationSlug' | '/api/scores/$locationSlug'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/api/scores/$locationSlug'
-  id: '__root__' | '/' | '/api/scores/$locationSlug'
+  to: '/' | '/location/$locationSlug' | '/api/scores/$locationSlug'
+  id: '__root__' | '/' | '/location/$locationSlug' | '/api/scores/$locationSlug'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  LocationLocationSlugRoute: typeof LocationLocationSlugRoute
   ApiScoresLocationSlugRoute: typeof ApiScoresLocationSlugRoute
 }
 
@@ -56,6 +66,13 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/location/$locationSlug': {
+      id: '/location/$locationSlug'
+      path: '/location/$locationSlug'
+      fullPath: '/location/$locationSlug'
+      preLoaderRoute: typeof LocationLocationSlugRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/scores/$locationSlug': {
@@ -70,6 +87,7 @@ declare module '@tanstack/react-router' {
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  LocationLocationSlugRoute: LocationLocationSlugRoute,
   ApiScoresLocationSlugRoute: ApiScoresLocationSlugRoute,
 }
 export const routeTree = rootRouteImport
