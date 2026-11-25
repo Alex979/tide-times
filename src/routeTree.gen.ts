@@ -10,33 +10,43 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as ApiScoresLocationSlugRouteImport } from './routes/api/scores/$locationSlug'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiScoresLocationSlugRoute = ApiScoresLocationSlugRouteImport.update({
+  id: '/api/scores/$locationSlug',
+  path: '/api/scores/$locationSlug',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/api/scores/$locationSlug': typeof ApiScoresLocationSlugRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/api/scores/$locationSlug': typeof ApiScoresLocationSlugRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/api/scores/$locationSlug': typeof ApiScoresLocationSlugRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/'
+  fullPaths: '/' | '/api/scores/$locationSlug'
   fileRoutesByTo: FileRoutesByTo
-  to: '/'
-  id: '__root__' | '/'
+  to: '/' | '/api/scores/$locationSlug'
+  id: '__root__' | '/' | '/api/scores/$locationSlug'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  ApiScoresLocationSlugRoute: typeof ApiScoresLocationSlugRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -48,11 +58,19 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/scores/$locationSlug': {
+      id: '/api/scores/$locationSlug'
+      path: '/api/scores/$locationSlug'
+      fullPath: '/api/scores/$locationSlug'
+      preLoaderRoute: typeof ApiScoresLocationSlugRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  ApiScoresLocationSlugRoute: ApiScoresLocationSlugRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
