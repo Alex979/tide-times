@@ -9,6 +9,7 @@
     "dev": "vite dev --port 3000",
     "generate-routes": "vite build",
     "build": "vite build",
+    "test": "bun test",
     "preview": "vite preview",
     "deploy": "bun run build && wrangler deploy",
     "db:generate": "drizzle-kit generate",

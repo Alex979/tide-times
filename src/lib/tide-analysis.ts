@@ -1,6 +1,6 @@
 import type { LocationTideScores } from "#/lib/tide-scores.server";
 
-export const MINUTES_IN_DAY = 1440;
+const MINUTES_IN_DAY = 1440;
 export const WINDOW_SCORE_THRESHOLD = 0.28;
 
 export type QualityTier = "prime" | "good" | "fair" | "poor";
@@ -33,9 +33,7 @@ export type PoolingWindow = {
   peakHeightFt: number;
   peakSlot: ScoreSlot;
   minHeightFt: number;
-  minHeightMinute: number;
   tier: Exclude<QualityTier, "poor">;
-  hasMinusTide: boolean;
 };
 
 export type DayAnalysis = {
@@ -65,12 +63,9 @@ export type DayAnalysis = {
   bestWindow: PoolingWindow | null;
   peakSlot: ScoreSlot | null;
   peakScore: number;
-  peakMinute: number | null;
   lowestDaylightHeightFt: number | null;
-  lowestDaylightMinute: number | null;
   lowestOverallLow: TideExtremum | null;
   tier: QualityTier;
-  hasMinusTide: boolean;
 };
 
 export type RankedWindow = PoolingWindow & {
@@ -103,10 +98,15 @@ export function formatScorePoints(score: number): string {
   return pts > 0 ? String(pts) : "—";
 }
 
+const PRIME_POINTS_THRESHOLD = 72;
+const GOOD_POINTS_THRESHOLD = 48;
+const FAIR_POINTS_THRESHOLD = Math.round(WINDOW_SCORE_THRESHOLD * 100);
+
 export function classifyScore(score: number): QualityTier {
-  if (score >= 0.72) return "prime";
-  if (score >= 0.48) return "good";
-  if (score >= WINDOW_SCORE_THRESHOLD) return "fair";
+  const pts = scoreToPoints(score);
+  if (pts >= PRIME_POINTS_THRESHOLD) return "prime";
+  if (pts >= GOOD_POINTS_THRESHOLD) return "good";
+  if (pts >= FAIR_POINTS_THRESHOLD) return "fair";
   return "poor";
 }
 
@@ -297,7 +297,7 @@ function interpolateCrossing(
   return null;
 }
 
-function findDayExtrema(
+export function findDayExtrema(
   slots: ScoreSlot[],
   prevLast: ScoreSlot | null,
   nextFirst: ScoreSlot | null,
@@ -305,60 +305,75 @@ function findDayExtrema(
   if (slots.length === 0) return [];
   const extrema: TideExtremum[] = [];
 
-  for (let i = 0; i < slots.length; i++) {
-    const curr = slots[i];
-    const prev = i > 0 ? slots[i - 1] : prevLast;
-    const next = i < slots.length - 1 ? slots[i + 1] : nextFirst;
+  let i = 0;
+  while (i < slots.length) {
+    const start = i;
+    const plateauHeight = slots[start].heightFt;
+    while (i + 1 < slots.length && slots[i + 1].heightFt === plateauHeight) {
+      i++;
+    }
+    const end = i;
+    i++;
+
+    const prev = start > 0 ? slots[start - 1] : prevLast;
+    const next = end < slots.length - 1 ? slots[end + 1] : nextFirst;
 
     if (!prev || !next) continue;
 
     const isLow =
-      curr.heightFt <= prev.heightFt && curr.heightFt < next.heightFt;
+      prev.heightFt > plateauHeight && next.heightFt > plateauHeight;
     const isHigh =
-      curr.heightFt >= prev.heightFt && curr.heightFt > next.heightFt;
+      prev.heightFt < plateauHeight && next.heightFt < plateauHeight;
 
-    if (isLow || isHigh) {
-      const last = extrema[extrema.length - 1];
-      const gapMinutes = last
-        ? (curr.timestamp.getTime() - last.timestamp.getTime()) / 60_000
-        : Infinity;
+    if (!isLow && !isHigh) continue;
 
-      if (
-        last &&
-        gapMinutes < 90 &&
-        last.type === (isLow ? "low" : "high")
-      ) {
+    const mid = slots[Math.floor((start + end) / 2)];
+    const type: TideExtremum["type"] = isLow ? "low" : "high";
+    const candidate: TideExtremum = {
+      type,
+      minuteOfDay: mid.minuteOfDay,
+      elapsedMinutes: mid.elapsedMinutes,
+      heightFt: mid.heightFt,
+      timestamp: mid.timestamp,
+      isDaylight: mid.sunScore > 0.15,
+    };
+
+    const last = extrema[extrema.length - 1];
+    if (last && last.type === type) {
+      const gapMinutes =
+        (candidate.timestamp.getTime() - last.timestamp.getTime()) / 60_000;
+      if (gapMinutes < 90) {
         if (
-          (isLow && curr.heightFt < last.heightFt) ||
-          (isHigh && curr.heightFt > last.heightFt)
+          (isLow && candidate.heightFt < last.heightFt) ||
+          (isHigh && candidate.heightFt > last.heightFt)
         ) {
-          extrema[extrema.length - 1] = {
-            type: isLow ? "low" : "high",
-            minuteOfDay: curr.minuteOfDay,
-            elapsedMinutes: curr.elapsedMinutes,
-            heightFt: curr.heightFt,
-            timestamp: curr.timestamp,
-            isDaylight: curr.sunScore > 0.15,
-          };
+          extrema[extrema.length - 1] = candidate;
         }
         continue;
       }
-
-      extrema.push({
-        type: isLow ? "low" : "high",
-        minuteOfDay: curr.minuteOfDay,
-        elapsedMinutes: curr.elapsedMinutes,
-        heightFt: curr.heightFt,
-        timestamp: curr.timestamp,
-        isDaylight: curr.sunScore > 0.15,
-      });
+    } else if (extrema.length >= 2) {
+      const prevSame = extrema[extrema.length - 2];
+      const gapMinutes =
+        (candidate.timestamp.getTime() - prevSame.timestamp.getTime()) / 60_000;
+      if (prevSame.type === type && gapMinutes < 90) {
+        extrema.pop();
+        if (
+          (isLow && candidate.heightFt < prevSame.heightFt) ||
+          (isHigh && candidate.heightFt > prevSame.heightFt)
+        ) {
+          extrema[extrema.length - 1] = candidate;
+        }
+        continue;
+      }
     }
+
+    extrema.push(candidate);
   }
 
   return extrema;
 }
 
-function findPoolingWindows(
+export function findPoolingWindows(
   dateKey: string,
   slots: ScoreSlot[],
   dayDurationMinutes: number,
@@ -399,9 +414,7 @@ function findPoolingWindows(
         peakHeightFt: peakSlot.heightFt,
         peakSlot,
         minHeightFt: lowestSlot.heightFt,
-        minHeightMinute: lowestSlot.minuteOfDay,
         tier,
-        hasMinusTide: lowestSlot.heightFt < 0,
       });
     }
 
@@ -409,7 +422,7 @@ function findPoolingWindows(
   };
 
   for (const slot of slots) {
-    if (slot.score >= WINDOW_SCORE_THRESHOLD) {
+    if (classifyScore(slot.score) !== "poor") {
       run.push(slot);
     } else {
       flush();
@@ -648,16 +661,9 @@ export function analyzeTideDays(
       bestWindow,
       peakSlot: resolvedPeakSlot,
       peakScore,
-      peakMinute:
-        resolvedPeakSlot && resolvedPeakSlot.score >= WINDOW_SCORE_THRESHOLD
-          ? resolvedPeakSlot.minuteOfDay
-          : null,
       lowestDaylightHeightFt: lowestDaylightSlot?.heightFt ?? null,
-      lowestDaylightMinute: lowestDaylightSlot?.minuteOfDay ?? null,
       lowestOverallLow,
       tier,
-      hasMinusTide:
-        lowestDaylightSlot !== null && lowestDaylightSlot.heightFt < 0,
     };
   });
 }
