@@ -24,7 +24,6 @@ import {
   getNextGoodWindow,
   getRangeTimezoneDisplay,
   getRankedWindows,
-  pickDefaultDateKey,
   scoreToPoints,
   tierLabel,
 } from "#/lib/tide-analysis";
@@ -39,24 +38,29 @@ function isMissingPredictionsError(error: string): boolean {
 }
 
 export const Route = createFileRoute("/location/$locationSlug")({
-  loader: ({ params: { locationSlug } }) =>
-    getLocationTideScoresFn({ data: locationSlug }),
-  head: ({ loaderData }) => ({
-    meta: [
-      {
-        title: loaderData?.ok
-          ? `${loaderData.data.location.name} — Tide Times`
-          : loaderData && isMissingPredictionsError(loaderData.error)
-            ? "Tide predictions unavailable — Tide Times"
-            : "Location not found — Tide Times",
-      },
-    ],
+  loader: async ({ params: { locationSlug } }) => ({
+    result: await getLocationTideScoresFn({ data: locationSlug }),
+    loadedAt: Date.now(),
   }),
+  head: ({ loaderData }) => {
+    const result = loaderData?.result;
+    return {
+      meta: [
+        {
+          title: result?.ok
+            ? `${result.data.location.name} — Tide Times`
+            : result && isMissingPredictionsError(result.error)
+              ? "Tide predictions unavailable — Tide Times"
+              : "Location not found — Tide Times",
+        },
+      ],
+    };
+  },
   component: LocationPage,
 });
 
 function LocationPage() {
-  const result = Route.useLoaderData();
+  const { result, loadedAt } = Route.useLoaderData();
   const { locationSlug } = Route.useParams();
 
   if (!result.ok) {
@@ -100,58 +104,41 @@ function LocationPage() {
     );
   }
 
-  return <LocationView data={result.data} />;
+  return <LocationView data={result.data} loadedAt={loadedAt} />;
 }
 
 function LocationView({
   data,
+  loadedAt,
 }: {
-  data: Extract<ReturnType<typeof Route.useLoaderData>, { ok: true }>["data"];
+  data: Extract<
+    ReturnType<typeof Route.useLoaderData>["result"],
+    { ok: true }
+  >["data"];
+  loadedAt: number;
 }) {
   const { location, scores } = data;
   const detailRef = useRef<HTMLDivElement | null>(null);
-  const hasManualSelectionRef = useRef(false);
 
-  // Hydrate wall-clock `now` after mount so SSR and initial client HTML match strictly
-  const [now, setNow] = useState<Date | null>(null);
+  // Seed `now` from the loader timestamp so SSR and initial hydration render identically
+  const [now, setNow] = useState<Date>(() => new Date(loadedAt));
   useEffect(() => {
     setNow(new Date());
     const interval = window.setInterval(() => setNow(new Date()), 60_000);
     return () => window.clearInterval(interval);
-  }, []);
+  }, [loadedAt]);
 
   const days = useMemo(
     () => analyzeTideDays(scores, location.timezone),
     [scores, location.timezone],
   );
 
-  const initialDefaultDateKey = useMemo(
-    () => pickDefaultDateKey(days, null, location.timezone),
-    [days, location.timezone],
-  );
-  const [selectedDateKey, setSelectedDateKey] = useState<string>(
-    initialDefaultDateKey,
-  );
+  const defaultDateKey = days[0]?.dateKey ?? "";
+  const [selectedDateKey, setSelectedDateKey] = useState<string>(defaultDateKey);
 
-  // Reset manual selection flag when navigating to a different location
   useEffect(() => {
-    hasManualSelectionRef.current = false;
-  }, [location.slug]);
-
-  // Once client `now` hydrates, advance the default selected day past ended windows
-  // if the user hasn't explicitly picked a day yet.
-  useEffect(() => {
-    if (!days.some((d) => d.dateKey === selectedDateKey)) {
-      setSelectedDateKey(pickDefaultDateKey(days, now, location.timezone));
-      return;
-    }
-    if (now && !hasManualSelectionRef.current) {
-      const upcomingDefault = pickDefaultDateKey(days, now, location.timezone);
-      if (upcomingDefault && upcomingDefault !== selectedDateKey) {
-        setSelectedDateKey(upcomingDefault);
-      }
-    }
-  }, [days, now, location.timezone, selectedDateKey]);
+    setSelectedDateKey(defaultDateKey);
+  }, [location.slug, defaultDateKey]);
 
   const selectedDayIndex = useMemo(() => {
     const idx = days.findIndex((d) => d.dateKey === selectedDateKey);
@@ -173,18 +160,13 @@ function LocationView({
     };
   }, [scores]);
 
-  const hasAnyWindow = useMemo(
-    () => days.some((d) => d.windows.length > 0),
-    [days],
-  );
-
   const rankedWindows = useMemo(
     () => getRankedWindows(days, now, location.timezone, 6),
     [days, now, location.timezone],
   );
 
   const currentCondition = useMemo(
-    () => (now ? getCurrentCondition(days, now, location.timezone) : null),
+    () => getCurrentCondition(days, now, location.timezone),
     [days, now, location.timezone],
   );
 
@@ -204,13 +186,11 @@ function LocationView({
   );
 
   const handleSelectDay = useCallback((dateKey: string) => {
-    hasManualSelectionRef.current = true;
     setSelectedDateKey(dateKey);
   }, []);
 
   const handleJumpToDay = useCallback(
     (dateKey: string, scrollToChart = false) => {
-      hasManualSelectionRef.current = true;
       setSelectedDateKey(dateKey);
       if (scrollToChart) {
         detailRef.current?.scrollIntoView({
@@ -330,7 +310,7 @@ function LocationView({
           </div>
 
           {/* Primary Actionable Takeaway: Active or Next Upcoming Window */}
-          {nextWindow ? (
+          {nextWindow && (
             <button
               type="button"
               onClick={() => handleJumpToDay(nextWindow.dateKey, true)}
@@ -366,23 +346,6 @@ function LocationView({
                 </div>
               </div>
             </button>
-          ) : (
-            !now &&
-            hasAnyWindow && (
-              <div
-                aria-hidden="true"
-                className="flex min-h-[104px] w-full items-center justify-between gap-5 rounded-xl border border-line bg-paper px-4 py-3.5 lg:w-auto lg:min-w-[324px]"
-              >
-                <div className="space-y-2">
-                  <div className="h-3 w-28 rounded bg-mist-deep" />
-                  <div className="h-5 w-32 rounded bg-mist" />
-                  <div className="h-3.5 w-40 rounded bg-mist" />
-                </div>
-                <div className="border-l border-line-subtle pl-4">
-                  <div className="h-8 w-10 rounded bg-mist" />
-                </div>
-              </div>
-            )
           )}
         </div>
 

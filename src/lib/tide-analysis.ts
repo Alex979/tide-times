@@ -686,10 +686,9 @@ export function computeMatrixHourRange(days: DayAnalysis[]): {
 
 function isWindowUpcoming(
   win: PoolingWindow,
-  nowDateKey: string | null,
+  nowDateKey: string,
   nowMinute: number,
 ): boolean {
-  if (!nowDateKey) return true;
   if (win.dateKey < nowDateKey) return false;
   if (win.dateKey === nowDateKey && win.endMinute <= nowMinute + 15) {
     return false;
@@ -705,18 +704,12 @@ const TIER_RANK: Record<Exclude<QualityTier, "poor">, number> = {
 
 export function getRankedWindows(
   days: DayAnalysis[],
-  now: Date | null,
+  now: Date,
   timezone: string,
   limit = 6,
 ): RankedWindow[] {
-  let nowDateKey: string | null = null;
-  let nowMinute = 0;
-
-  if (now) {
-    const parts = getDatePartsInTimezone(now, timezone);
-    nowDateKey = parts.dateKey;
-    nowMinute = parts.minuteOfDay;
-  }
+  const { dateKey: nowDateKey, minuteOfDay: nowMinute } =
+    getDatePartsInTimezone(now, timezone);
 
   const all: RankedWindow[] = [];
   for (const day of days) {
@@ -744,11 +737,9 @@ export function getRankedWindows(
 
 export function getNextGoodWindow(
   days: DayAnalysis[],
-  now: Date | null,
+  now: Date,
   timezone: string,
 ): NextWindowInfo | null {
-  if (!now) return null;
-
   const { dateKey: nowDateKey, minuteOfDay: nowMinute } =
     getDatePartsInTimezone(now, timezone);
 
@@ -773,42 +764,6 @@ export function getNextGoodWindow(
   }
 
   return upcomingGoodOrPrime[0] ?? upcomingFair[0] ?? null;
-}
-
-export function pickDefaultDateKey(
-  days: DayAnalysis[],
-  now: Date | null,
-  timezone: string,
-): string {
-  if (days.length === 0) return "";
-
-  let nowDateKey: string | null = null;
-  let nowMinute = 0;
-
-  if (now) {
-    const parts = getDatePartsInTimezone(now, timezone);
-    nowDateKey = parts.dateKey;
-    nowMinute = parts.minuteOfDay;
-  }
-
-  // Prefer the first day with an upcoming Good or Prime window
-  const firstUpcomingGood = days.find((d) =>
-    d.windows.some(
-      (win) =>
-        (win.tier === "prime" || win.tier === "good") &&
-        isWindowUpcoming(win, nowDateKey, nowMinute),
-    ),
-  );
-  if (firstUpcomingGood) return firstUpcomingGood.dateKey;
-
-  // Next, any upcoming Fair window
-  const firstUpcomingFair = days.find((d) =>
-    d.windows.some((win) => isWindowUpcoming(win, nowDateKey, nowMinute)),
-  );
-  if (firstUpcomingFair) return firstUpcomingFair.dateKey;
-
-  const highest = [...days].sort((a, b) => b.peakScore - a.peakScore)[0];
-  return highest?.dateKey ?? days[0].dateKey;
 }
 
 export function getCurrentCondition(
