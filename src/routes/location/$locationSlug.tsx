@@ -1,174 +1,433 @@
-import { createCssColorScale } from "#/lib/color-scale";
+import { BestWindowsList } from "#/components/location/BestWindowsList";
+import { DayTideChart } from "#/components/location/DayTideChart";
+import { LocationFieldNotes } from "#/components/location/LocationFieldNotes";
+import {
+  ChevronLeftIcon,
+  ClockIcon,
+  PinIcon,
+  TideFallingIcon,
+  TideRisingIcon,
+  TideSlackIcon,
+  WaveIcon,
+} from "#/components/location/LocationIcons";
+import { TideOutlookMatrix } from "#/components/location/TideOutlookMatrix";
+import { getLocationFieldGuide } from "#/lib/location-guide";
+import { scoreToCssColor } from "#/lib/score-palette";
+import {
+  analyzeTideDays,
+  daylightStatusLabel,
+  formatDuration,
+  formatHeightFt,
+  formatMinuteOfDay,
+  getCurrentCondition,
+  getNextGoodWindow,
+  getRangeTimezoneDisplay,
+  getRankedWindows,
+  pickDefaultDateKey,
+  scoreToPoints,
+  tierLabel,
+} from "#/lib/tide-analysis";
 import { getLocationTideScoresFn } from "#/lib/tide-scores.function";
-import type { LocationTideScores } from "#/lib/tide-scores.server";
-import { createFileRoute } from "@tanstack/react-router";
-import { useMemo } from "react";
+import { createFileRoute, Link } from "@tanstack/react-router";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
-const MINUTES_IN_DAY = 1440;
+const FEATURED_FALLBACK_SLUG = "fitzgerald-marine-reserve";
 
-const scoreToCssColor = createCssColorScale([
-  [0, "var(--color-score-low)"],
-  [0.2, "var(--color-score-mid)"],
-  [0.9, "var(--color-score-high)"],
-]);
+function isMissingPredictionsError(error: string): boolean {
+  return error.toLowerCase().includes("prediction");
+}
 
 export const Route = createFileRoute("/location/$locationSlug")({
   loader: ({ params: { locationSlug } }) =>
     getLocationTideScoresFn({ data: locationSlug }),
-  component: Location,
+  head: ({ loaderData }) => ({
+    meta: [
+      {
+        title: loaderData?.ok
+          ? `${loaderData.data.location.name} — Tide Times`
+          : loaderData && isMissingPredictionsError(loaderData.error)
+            ? "Tide predictions unavailable — Tide Times"
+            : "Location not found — Tide Times",
+      },
+    ],
+  }),
+  component: LocationPage,
 });
 
-type ScoreWithMinute = LocationTideScores["scores"][number] & {
-  minuteOfDay: number;
-};
-
-type DayScores = {
-  dateKey: string;
-  scores: ScoreWithMinute[];
-};
-
-function groupScoresByDay(
-  scores: LocationTideScores["scores"],
-  timezone: string,
-): DayScores[] {
-  // Inner map deduplicates repeated wall-clock minutes on Fall Back DST days.
-  const byDate = new Map<string, Map<number, ScoreWithMinute>>();
-
-  const fmt = new Intl.DateTimeFormat("en-US", {
-    timeZone: timezone,
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit",
-    hourCycle: "h23",
-  });
-
-  for (const score of scores) {
-    let year = "";
-    let month = "";
-    let day = "";
-    let hour = 0;
-    let minute = 0;
-
-    for (const part of fmt.formatToParts(score.timestamp)) {
-      switch (part.type) {
-        case "year":
-          year = part.value;
-          break;
-        case "month":
-          month = part.value;
-          break;
-        case "day":
-          day = part.value;
-          break;
-        case "hour":
-          hour = Number(part.value);
-          break;
-        case "minute":
-          minute = Number(part.value);
-          break;
-      }
-    }
-
-    const dateKey = `${year}-${month}-${day}`;
-    const minuteOfDay = hour * 60 + minute;
-
-    let dayMap = byDate.get(dateKey);
-    if (!dayMap) {
-      dayMap = new Map();
-      byDate.set(dateKey, dayMap);
-    }
-
-    const existing = dayMap.get(minuteOfDay);
-    if (!existing || score.score > existing.score) {
-      dayMap.set(minuteOfDay, {
-        ...score,
-        minuteOfDay,
-      });
-    }
-  }
-
-  // Sort days chronologically and each day's slots by ascending minuteOfDay
-  // so gradient stops are always strictly ordered (including across DST days).
-  return [...byDate.entries()]
-    .sort(([a], [b]) => a.localeCompare(b))
-    .map(([dateKey, dayMap]) => ({
-      dateKey,
-      scores: [...dayMap.values()].sort(
-        (a, b) => a.minuteOfDay - b.minuteOfDay,
-      ),
-    }));
-}
-
-function DayBar({ scores }: { scores: ScoreWithMinute[] }) {
-  let background = "var(--color-score-low)";
-
-  if (scores.length > 0) {
-    const rawStops = scores.map((score) => ({
-      color: scoreToCssColor(score.score),
-      percent: ((score.minuteOfDay / MINUTES_IN_DAY) * 100).toFixed(3),
-    }));
-
-    if (rawStops.every((stop) => stop.color === rawStops[0].color)) {
-      background = rawStops[0].color;
-    } else {
-      // Collapse interior runs of 3+ identical colors (e.g. flat nighttime spans)
-      // while preserving exact transition boundaries.
-      const collapsed = rawStops.filter(
-        (stop, i) =>
-          i === 0 ||
-          i === rawStops.length - 1 ||
-          rawStops[i - 1].color !== stop.color ||
-          rawStops[i + 1].color !== stop.color,
-      );
-      const cssStops = collapsed.map(
-        (stop) => `${stop.color} ${stop.percent}%`,
-      );
-      background = `linear-gradient(to bottom in oklab, ${cssStops.join(", ")})`;
-    }
-  }
-
-  return (
-    <div
-      style={{ background }}
-      className="w-10 h-50 rounded-xl flex-none"
-    ></div>
-  );
-}
-
-function Location() {
+function LocationPage() {
   const result = Route.useLoaderData();
-
-  const days = useMemo(
-    () =>
-      result.ok
-        ? groupScoresByDay(result.data.scores, result.data.location.timezone)
-        : [],
-    [result],
-  );
+  const { locationSlug } = Route.useParams();
 
   if (!result.ok) {
+    const missingPredictions = isMissingPredictionsError(result.error);
+    const isAlreadyFallback =
+      locationSlug.toLowerCase().trim() === FEATURED_FALLBACK_SLUG;
+
     return (
-      <div className="p-8">
-        <p>{result.error}</p>
-      </div>
+      <main className="mx-auto flex min-h-[70vh] max-w-2xl flex-col justify-center px-5 py-16">
+        <div className="rounded-2xl border border-line bg-paper p-8">
+          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-mist text-teal-deep">
+            <WaveIcon className="h-5 w-5" />
+          </div>
+          <h1 className="font-display mt-5 text-2xl font-semibold tracking-tight text-ink">
+            {missingPredictions
+              ? "Tide predictions unavailable"
+              : "Location not found"}
+          </h1>
+          <p className="mt-2 text-sm leading-relaxed text-ink-secondary">
+            {result.error}
+          </p>
+          <div className="mt-6 flex flex-wrap gap-3">
+            {!isAlreadyFallback && (
+              <Link
+                to="/location/$locationSlug"
+                params={{ locationSlug: FEATURED_FALLBACK_SLUG }}
+                className="rounded-lg bg-teal-deep px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-ink"
+              >
+                View Fitzgerald Marine Reserve
+              </Link>
+            )}
+            <Link
+              to="/"
+              className="rounded-lg border border-line bg-paper px-4 py-2 text-sm font-medium text-ink transition-colors hover:bg-mist"
+            >
+              Back to home
+            </Link>
+          </div>
+        </div>
+      </main>
     );
   }
 
-  const { location, scores } = result.data;
+  return <LocationView data={result.data} />;
+}
+
+function LocationView({
+  data,
+}: {
+  data: Extract<ReturnType<typeof Route.useLoaderData>, { ok: true }>["data"];
+}) {
+  const { location, scores } = data;
+  const detailRef = useRef<HTMLDivElement | null>(null);
+  const hasManualSelectionRef = useRef(false);
+
+  // Hydrate wall-clock `now` after mount so SSR and initial client HTML match strictly
+  const [now, setNow] = useState<Date | null>(null);
+  useEffect(() => {
+    setNow(new Date());
+    const interval = window.setInterval(() => setNow(new Date()), 60_000);
+    return () => window.clearInterval(interval);
+  }, []);
+
+  const days = useMemo(
+    () => analyzeTideDays(scores, location.timezone),
+    [scores, location.timezone],
+  );
+
+  const initialDefaultDateKey = useMemo(
+    () => pickDefaultDateKey(days, null, location.timezone),
+    [days, location.timezone],
+  );
+  const [selectedDateKey, setSelectedDateKey] = useState<string>(
+    initialDefaultDateKey,
+  );
+
+  // Reset manual selection flag when navigating to a different location
+  useEffect(() => {
+    hasManualSelectionRef.current = false;
+  }, [location.slug]);
+
+  // Once client `now` hydrates, advance the default selected day past ended windows
+  // if the user hasn't explicitly picked a day yet.
+  useEffect(() => {
+    if (!days.some((d) => d.dateKey === selectedDateKey)) {
+      setSelectedDateKey(pickDefaultDateKey(days, now, location.timezone));
+      return;
+    }
+    if (now && !hasManualSelectionRef.current) {
+      const upcomingDefault = pickDefaultDateKey(days, now, location.timezone);
+      if (upcomingDefault && upcomingDefault !== selectedDateKey) {
+        setSelectedDateKey(upcomingDefault);
+      }
+    }
+  }, [days, now, location.timezone, selectedDateKey]);
+
+  const selectedDayIndex = useMemo(() => {
+    const idx = days.findIndex((d) => d.dateKey === selectedDateKey);
+    return idx >= 0 ? idx : 0;
+  }, [days, selectedDateKey]);
+
+  const selectedDay = days[selectedDayIndex];
+
+  const { globalMinHeight, globalMaxHeight } = useMemo(() => {
+    let min = Infinity;
+    let max = -Infinity;
+    for (const s of scores) {
+      if (s.heightFt < min) min = s.heightFt;
+      if (s.heightFt > max) max = s.heightFt;
+    }
+    return {
+      globalMinHeight: Number.isFinite(min) ? min : -1.5,
+      globalMaxHeight: Number.isFinite(max) ? max : 6,
+    };
+  }, [scores]);
+
+  const hasAnyWindow = useMemo(
+    () => days.some((d) => d.windows.length > 0),
+    [days],
+  );
+
+  const rankedWindows = useMemo(
+    () => getRankedWindows(days, now, location.timezone, 6),
+    [days, now, location.timezone],
+  );
+
+  const currentCondition = useMemo(
+    () => (now ? getCurrentCondition(days, now, location.timezone) : null),
+    [days, now, location.timezone],
+  );
+
+  const nextWindow = useMemo(
+    () => getNextGoodWindow(days, now, location.timezone),
+    [days, now, location.timezone],
+  );
+
+  const tzDisplay = useMemo(() => {
+    const refDate = scores[0]?.timestamp ?? new Date(2026, 0, 1);
+    return getRangeTimezoneDisplay(location.timezone, days, refDate);
+  }, [location.timezone, days, scores]);
+
+  const guide = useMemo(
+    () => getLocationFieldGuide(location.slug),
+    [location.slug],
+  );
+
+  const handleSelectDay = useCallback((dateKey: string) => {
+    hasManualSelectionRef.current = true;
+    setSelectedDateKey(dateKey);
+  }, []);
+
+  const handleJumpToDay = useCallback(
+    (dateKey: string, scrollToChart = false) => {
+      hasManualSelectionRef.current = true;
+      setSelectedDateKey(dateKey);
+      if (scrollToChart) {
+        detailRef.current?.scrollIntoView({
+          behavior: "smooth",
+          block: "nearest",
+        });
+      }
+    },
+    [],
+  );
 
   return (
-    <div className="p-8">
-      <h1 className="text-4xl font-bold">{location.name}</h1>
-      <p className="mt-2 text-sm text-gray-600">
-        {scores.length} prediction slots ({location.timezone})
-      </p>
-      <div className="w-full flex gap-2 overflow-x-auto">
-        {days.map(({ dateKey, scores: dayScores }) => (
-          <DayBar key={dateKey} scores={dayScores} />
-        ))}
-      </div>
+    <div className="min-h-screen bg-mist text-ink">
+      {/* Quiet Top Navigation Bar */}
+      <header className="border-b border-line-subtle bg-paper/75 backdrop-blur-sm">
+        <div className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-4 py-3 sm:px-6 lg:px-8">
+          <Link
+            to="/"
+            className="inline-flex items-center gap-1.5 text-sm font-medium text-ink-secondary transition-colors hover:text-ink"
+          >
+            <ChevronLeftIcon className="h-4 w-4" />
+            <span>Tide Times</span>
+          </Link>
+
+          <div className="inline-flex items-center gap-1.5 text-xs font-medium text-ink-muted">
+            <ClockIcon className="h-3.5 w-3.5 shrink-0" />
+            <span className="sm:hidden">{tzDisplay.short}</span>
+            <span className="hidden sm:inline">
+              {tzDisplay.long} ({tzDisplay.short})
+            </span>
+          </div>
+        </div>
+      </header>
+
+      <main className="mx-auto max-w-6xl px-4 pt-7 pb-16 sm:px-6 sm:pt-9 lg:px-8">
+        {/* Location Hero Header */}
+        <div className="flex flex-col gap-6 pb-7 lg:flex-row lg:items-end lg:justify-between">
+          <div className="max-w-2xl">
+            <h1 className="font-display text-3xl leading-[1.06] font-semibold tracking-tight text-ink sm:text-4xl lg:text-[2.75rem]">
+              {location.name}
+            </h1>
+
+            <div className="mt-2 flex items-center gap-1.5 text-sm text-ink-secondary">
+              <PinIcon className="h-4 w-4 shrink-0 text-teal-mid" />
+              <span>{guide.region}</span>
+            </div>
+
+            {/* Live Score & Supporting Tide State */}
+            <div className="mt-3 min-h-[26px] text-sm">
+              {currentCondition ? (
+                <div className="inline-flex flex-wrap items-center gap-x-3 gap-y-1.5 text-ink-secondary">
+                  <span
+                    className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-semibold ${
+                      currentCondition.tier === "prime"
+                        ? "bg-teal-deep text-white"
+                        : currentCondition.tier === "good"
+                          ? "bg-teal-soft text-teal-deep"
+                          : "border border-line bg-paper text-ink-secondary"
+                    }`}
+                  >
+                    <span
+                      aria-hidden="true"
+                      className="inline-block h-2 w-2 rounded-full ring-1 ring-white/50"
+                      style={{
+                        backgroundColor: scoreToCssColor(
+                          currentCondition.score,
+                        ),
+                      }}
+                    />
+                    <span className="tabular-nums">
+                      Score {scoreToPoints(currentCondition.score)} now
+                    </span>
+                    <span className="opacity-85">
+                      ({tierLabel(currentCondition.tier)})
+                    </span>
+                  </span>
+
+                  <span className="inline-flex items-center gap-1 text-ink-secondary">
+                    {currentCondition.trend === "falling" ? (
+                      <TideFallingIcon className="h-4 w-4 text-teal-deep" />
+                    ) : currentCondition.trend === "rising" ? (
+                      <TideRisingIcon className="h-4 w-4 text-ink-muted" />
+                    ) : (
+                      <TideSlackIcon className="h-4 w-4 text-ink-muted" />
+                    )}
+                    <span className="tabular-nums font-medium text-ink">
+                      {formatHeightFt(currentCondition.heightFt)}
+                    </span>
+                    <span>
+                      and{" "}
+                      {currentCondition.trend === "slack"
+                        ? "near slack"
+                        : currentCondition.trend}
+                    </span>
+                  </span>
+
+                  {!currentCondition.isDaylight && (
+                    <span className="text-xs text-ink-muted">
+                      {daylightStatusLabel(currentCondition.sunScore)}
+                    </span>
+                  )}
+                </div>
+              ) : (
+                <span className="text-ink-muted">
+                  14-day tide pooling forecast
+                </span>
+              )}
+            </div>
+          </div>
+
+          {/* Primary Actionable Takeaway: Active or Next Upcoming Window */}
+          {nextWindow ? (
+            <button
+              type="button"
+              onClick={() => handleJumpToDay(nextWindow.dateKey, true)}
+              className="group flex min-h-[104px] w-full cursor-pointer items-center justify-between gap-5 rounded-xl border border-line bg-paper px-4 py-3.5 text-left transition-colors hover:border-teal-deep/50 lg:w-auto lg:min-w-[324px]"
+            >
+              <div>
+                <div className="text-xs font-medium text-teal-deep">
+                  {nextWindow.isActiveNow
+                    ? `${tierLabel(nextWindow.tier)} window open now`
+                    : `Next ${tierLabel(nextWindow.tier).toLowerCase()} window`}
+                </div>
+                <div className="font-display mt-0.5 text-lg leading-snug font-semibold text-ink">
+                  {nextWindow.day.shortDateLabel}
+                </div>
+                <div className="tabular-nums mt-0.5 text-sm text-ink-secondary">
+                  {formatMinuteOfDay(nextWindow.startMinute)}–
+                  {formatMinuteOfDay(nextWindow.endMinute)}{" "}
+                  <span className="whitespace-nowrap text-ink-muted">
+                    ({formatDuration(nextWindow.durationMinutes)})
+                  </span>
+                </div>
+                <div className="tabular-nums mt-0.5 text-xs text-ink-muted">
+                  Low tide {formatHeightFt(nextWindow.minHeightFt)}
+                </div>
+              </div>
+
+              <div className="shrink-0 border-l border-line-subtle pl-4 text-right">
+                <div className="tabular-nums font-display text-3xl leading-none font-semibold text-teal-deep">
+                  {scoreToPoints(nextWindow.peakScore)}
+                </div>
+                <div className="mt-1 text-xs font-medium text-ink-muted">
+                  Peak score
+                </div>
+              </div>
+            </button>
+          ) : (
+            !now &&
+            hasAnyWindow && (
+              <div
+                aria-hidden="true"
+                className="flex min-h-[104px] w-full items-center justify-between gap-5 rounded-xl border border-line bg-paper px-4 py-3.5 lg:w-auto lg:min-w-[324px]"
+              >
+                <div className="space-y-2">
+                  <div className="h-3 w-28 rounded bg-mist-deep" />
+                  <div className="h-5 w-32 rounded bg-mist" />
+                  <div className="h-3.5 w-40 rounded bg-mist" />
+                </div>
+                <div className="border-l border-line-subtle pl-4">
+                  <div className="h-8 w-10 rounded bg-mist" />
+                </div>
+              </div>
+            )
+          )}
+        </div>
+
+        {/* Hero Instrument: 14-Day Intertidal Outlook Matrix */}
+        {days.length > 0 && (
+          <TideOutlookMatrix
+            days={days}
+            selectedDateKey={selectedDay?.dateKey ?? ""}
+            onSelectDay={handleSelectDay}
+            currentCondition={currentCondition}
+            timezoneAxisLabel={tzDisplay.short}
+          />
+        )}
+
+        {/* Secondary Instruments: Selected Day Chart + Ranked Best Windows */}
+        {selectedDay && (
+          <div
+            ref={detailRef}
+            className="mt-7 grid grid-cols-1 gap-8 lg:grid-cols-[minmax(0,1fr)_316px] lg:items-start"
+          >
+            <DayTideChart
+              day={selectedDay}
+              dayIndex={selectedDayIndex}
+              totalDays={days.length}
+              onPrevDay={() => {
+                if (selectedDayIndex > 0) {
+                  handleSelectDay(days[selectedDayIndex - 1].dateKey);
+                }
+              }}
+              onNextDay={() => {
+                if (selectedDayIndex < days.length - 1) {
+                  handleSelectDay(days[selectedDayIndex + 1].dateKey);
+                }
+              }}
+              globalMinHeight={globalMinHeight}
+              globalMaxHeight={globalMaxHeight}
+              currentCondition={currentCondition}
+              plannedFactors={guide.plannedFactors}
+            />
+
+            <BestWindowsList
+              windows={rankedWindows}
+              days={days}
+              selectedDateKey={selectedDay.dateKey}
+              onSelectDay={handleSelectDay}
+            />
+          </div>
+        )}
+
+        {/* Coastal Field Guide & Safety Notes */}
+        <div className="mt-12">
+          <LocationFieldNotes locationName={location.name} guide={guide} />
+        </div>
+      </main>
     </div>
   );
 }
