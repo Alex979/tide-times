@@ -1,7 +1,6 @@
 import type { LocationTideScores } from "#/lib/tide-scores.server";
 
 const MINUTES_IN_DAY = 1440;
-export const WINDOW_SCORE_THRESHOLD = 0.28;
 
 export type QualityTier = "prime" | "good" | "fair" | "poor";
 
@@ -100,7 +99,7 @@ export function formatScorePoints(score: number): string {
 
 const PRIME_POINTS_THRESHOLD = 72;
 const GOOD_POINTS_THRESHOLD = 48;
-const FAIR_POINTS_THRESHOLD = Math.round(WINDOW_SCORE_THRESHOLD * 100);
+const FAIR_POINTS_THRESHOLD = 28;
 
 export function classifyScore(score: number): QualityTier {
   const pts = scoreToPoints(score);
