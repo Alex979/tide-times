@@ -1,9 +1,6 @@
 import { buildScoreGradient, scoreToCssColor } from "#/lib/score-palette";
 import {
-  classifyScore,
   computeMatrixHourRange,
-  daylightStatusLabel,
-  formatHeightFt,
   formatMinuteOfDay,
   formatScorePoints,
   scoreToPoints,
@@ -13,6 +10,11 @@ import {
   type ScoreSlot,
 } from "#/lib/tide-analysis";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  OutlookReadoutStrip,
+  type SlotInspection,
+} from "./OutlookReadoutStrip";
+import { useMatrixTouchScrub } from "./useMatrixTouchScrub";
 
 type TideOutlookMatrixProps = {
   days: DayAnalysis[];
@@ -21,16 +23,6 @@ type TideOutlookMatrixProps = {
   currentCondition: CurrentCondition | null;
   timezoneAxisLabel: string;
 };
-
-type SlotInspection = {
-  day: DayAnalysis;
-  slot: ScoreSlot;
-  yPercent: number;
-  pinned: boolean;
-};
-
-const HOLD_SCRUB_DELAY_MS = 180;
-const MOVE_SLOP_PX = 8;
 
 function buildPolylinePath(points: Array<{ x: number; y: number }>): string {
   if (points.length === 0) return "";
@@ -71,12 +63,15 @@ export function TideOutlookMatrix({
   timezoneAxisLabel,
 }: TideOutlookMatrixProps) {
   const [inspection, setInspection] = useState<SlotInspection | null>(null);
-  const [isTouchScrubbing, setIsTouchScrubbing] = useState(false);
 
   const headerRefs = useRef<Array<HTMLButtonElement | null>>([]);
   const barRefs = useRef<Array<HTMLDivElement | null>>([]);
   const barsAreaRef = useRef<HTMLDivElement | null>(null);
-  const lastTouchTimeRef = useRef<number>(0);
+
+  // Clear pinned/hovered inspection when loader data refreshes
+  useEffect(() => {
+    setInspection(null);
+  }, [days]);
 
   const { startHour, endHour } = useMemo(
     () => computeMatrixHourRange(days),
@@ -106,6 +101,20 @@ export function TideOutlookMatrix({
     }
     return `${first.monthShort} ${first.dayNumber} – ${last.monthShort} ${last.dayNumber}`;
   }, [days]);
+
+  const columnGradients = useMemo(
+    () =>
+      days.map((day) =>
+        buildScoreGradient(
+          day.scores,
+          startMinute,
+          endMinute,
+          "to bottom",
+          false,
+        ),
+      ),
+    [days, startMinute, endMinute],
+  );
 
   const horizonCurves = useMemo(() => {
     const count = days.length;
@@ -198,138 +207,12 @@ export function TideOutlookMatrix({
     [days, startMinute, minuteSpan],
   );
 
-  // Keep latest callbacks/state in refs so touch listeners subscribe once and never
-  // tear down mid-gesture during 60s `now` updates or day selection changes.
-  const inspectAtPointRef = useRef(inspectAtPoint);
-  const onSelectDayRef = useRef(onSelectDay);
-  const selectedDateKeyRef = useRef(selectedDateKey);
-  inspectAtPointRef.current = inspectAtPoint;
-  onSelectDayRef.current = onSelectDay;
-  selectedDateKeyRef.current = selectedDateKey;
-
-  // Mobile touch gesture controller:
-  // - Hold (~180ms) anywhere on ANY bar -> scrub freely across all days & times
-  // - Vertical drag immediately on the already-selected bar -> instant scrub
-  // - Quick horizontal swipe or vertical scroll on unselected bars -> native scroll
-  // - Quick or unhurried tap without moving -> selects that day
-  useEffect(() => {
-    const area = barsAreaRef.current;
-    if (!area) return;
-
-    let mode: "idle" | "pending" | "scrubbing" | "scrolling" = "idle";
-    let startX = 0;
-    let startY = 0;
-    let moved = false;
-    let startedOnSelected = false;
-    let holdTimer: number | null = null;
-
-    const clearHoldTimer = () => {
-      if (holdTimer !== null) {
-        window.clearTimeout(holdTimer);
-        holdTimer = null;
-      }
-    };
-
-    const onTouchStart = (e: TouchEvent) => {
-      if (e.touches.length !== 1) {
-        clearHoldTimer();
-        mode = "idle";
-        setIsTouchScrubbing(false);
-        return;
-      }
-
-      const touch = e.touches[0];
-      startX = touch.clientX;
-      startY = touch.clientY;
-      moved = false;
-      mode = "pending";
-
-      const target = e.target as HTMLElement | null;
-      const colEl = target?.closest<HTMLElement>("[data-day-key]");
-      startedOnSelected = colEl?.dataset.dayKey === selectedDateKeyRef.current;
-
-      clearHoldTimer();
-      holdTimer = window.setTimeout(() => {
-        if (mode === "pending") {
-          mode = "scrubbing";
-          setIsTouchScrubbing(true);
-          inspectAtPointRef.current(startX, startY, true);
-        }
-      }, HOLD_SCRUB_DELAY_MS);
-    };
-
-    const onTouchMove = (e: TouchEvent) => {
-      if (e.touches.length !== 1) return;
-      const touch = e.touches[0];
-      const dx = Math.abs(touch.clientX - startX);
-      const dy = Math.abs(touch.clientY - startY);
-
-      if (dx >= MOVE_SLOP_PX || dy >= MOVE_SLOP_PX) {
-        moved = true;
-      }
-
-      if (mode === "scrubbing") {
-        e.preventDefault();
-        inspectAtPointRef.current(touch.clientX, touch.clientY, true);
-        return;
-      }
-
-      if (mode !== "pending") return;
-      if (!moved) return;
-
-      clearHoldTimer();
-
-      if (startedOnSelected && dy > dx * 1.15) {
-        mode = "scrubbing";
-        setIsTouchScrubbing(true);
-        e.preventDefault();
-        inspectAtPointRef.current(touch.clientX, touch.clientY, true);
-      } else {
-        mode = "scrolling";
-      }
-    };
-
-    const onTouchEnd = (e: TouchEvent) => {
-      clearHoldTimer();
-      lastTouchTimeRef.current = Date.now();
-      // Treat both fast taps (mode === "pending") and unhurried taps that crossed
-      // the hold threshold without dragging (mode === "scrubbing" && !moved) as day selection.
-      if (mode === "pending" || (mode === "scrubbing" && !moved)) {
-        const touch = e.changedTouches[0];
-        if (touch) {
-          const tappedDay = inspectAtPointRef.current(
-            touch.clientX,
-            touch.clientY,
-            true,
-          );
-          if (tappedDay) {
-            onSelectDayRef.current(tappedDay.dateKey);
-          }
-        }
-      }
-      mode = "idle";
-      setIsTouchScrubbing(false);
-    };
-
-    const onTouchCancel = () => {
-      clearHoldTimer();
-      mode = "idle";
-      setIsTouchScrubbing(false);
-    };
-
-    area.addEventListener("touchstart", onTouchStart, { passive: true });
-    area.addEventListener("touchmove", onTouchMove, { passive: false });
-    area.addEventListener("touchend", onTouchEnd, { passive: true });
-    area.addEventListener("touchcancel", onTouchCancel, { passive: true });
-
-    return () => {
-      clearHoldTimer();
-      area.removeEventListener("touchstart", onTouchStart);
-      area.removeEventListener("touchmove", onTouchMove);
-      area.removeEventListener("touchend", onTouchEnd);
-      area.removeEventListener("touchcancel", onTouchCancel);
-    };
-  }, []);
+  const { isTouchScrubbing, isRecentTouch } = useMatrixTouchScrub({
+    areaRef: barsAreaRef,
+    selectedDateKey,
+    inspectAtPoint,
+    onSelectDay,
+  });
 
   const handleMousePointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
     if (e.pointerType === "touch") return;
@@ -341,7 +224,7 @@ export function TideOutlookMatrix({
     day: DayAnalysis,
   ) => {
     // Ignore synthetic click synthesized right after touch events
-    if (Date.now() - lastTouchTimeRef.current < 450) return;
+    if (isRecentTouch()) return;
     onSelectDay(day.dateKey);
     inspectAtPoint(e.clientX, e.clientY, false);
   };
@@ -381,116 +264,12 @@ export function TideOutlookMatrix({
         </span>
       </div>
 
-      {/* Fixed-height Unified Legend / Live Readout Strip (zero layout shift while scrubbing) */}
-      <div className="flex h-[54px] items-center justify-between gap-2 overflow-hidden border-b border-line-subtle bg-mist/45 px-4 text-xs sm:h-[42px] sm:px-6">
-        {inspection ? (
-          <div className="flex min-w-0 flex-1 items-center justify-between gap-2">
-            <div className="flex min-w-0 flex-col justify-center gap-0.5 sm:flex-row sm:items-center sm:gap-3.5">
-              <div className="flex items-center gap-2.5 whitespace-nowrap text-ink sm:gap-3.5">
-                <span className="font-semibold">
-                  {inspection.day.shortDateLabel}
-                </span>
-                <span className="tabular-nums font-medium">
-                  {formatMinuteOfDay(inspection.slot.minuteOfDay)}
-                  <span className="hidden sm:inline">
-                    {" "}
-                    {inspection.day.timezoneShort}
-                  </span>
-                </span>
-              </div>
-              <div className="flex items-center gap-2.5 whitespace-nowrap sm:gap-3.5">
-                <span className="inline-flex items-center gap-1.5 font-semibold text-teal-deep">
-                  <span
-                    className="inline-block h-2.5 w-2.5 shrink-0 rounded-full ring-1 ring-ink/15"
-                    style={{
-                      backgroundColor: scoreToCssColor(inspection.slot.score),
-                    }}
-                  />
-                  <span className="tabular-nums">
-                    Score {scoreToPoints(inspection.slot.score)}
-                  </span>
-                  <span className="font-medium text-ink-secondary">
-                    ({tierLabel(classifyScore(inspection.slot.score))})
-                  </span>
-                </span>
-                <span className="tabular-nums text-ink-secondary">
-                  {formatHeightFt(inspection.slot.heightFt)}
-                </span>
-                <span className="truncate text-ink-muted">
-                  {daylightStatusLabel(inspection.slot.sunScore)}
-                </span>
-              </div>
-            </div>
-
-            {inspection.pinned && (
-              <button
-                type="button"
-                onClick={() => setInspection(null)}
-                aria-label="Clear inspected time"
-                className="flex h-6 w-6 shrink-0 cursor-pointer items-center justify-center rounded-md text-ink-muted hover:bg-mist-deep hover:text-ink"
-              >
-                <svg
-                  viewBox="0 0 14 14"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth={1.75}
-                  strokeLinecap="round"
-                  className="h-3.5 w-3.5"
-                  aria-hidden="true"
-                >
-                  <path d="M3.5 3.5l7 7M10.5 3.5l-7 7" />
-                </svg>
-              </button>
-            )}
-          </div>
-        ) : (
-          <div className="flex flex-col justify-center gap-1 text-ink-secondary sm:flex-row sm:items-center sm:gap-5">
-            <div className="flex items-center gap-4 whitespace-nowrap sm:gap-5">
-              <div className="flex items-center gap-2">
-                <span className="text-ink-muted">Poor</span>
-                <span
-                  aria-hidden="true"
-                  className="h-2.5 w-20 rounded-full ring-1 ring-inset ring-ink/10 sm:w-24"
-                  style={{
-                    backgroundImage:
-                      "linear-gradient(to right in oklab, var(--color-score-low) 0%, var(--color-score-fair) 30%, var(--color-score-good) 65%, var(--color-score-high) 100%)",
-                    backgroundRepeat: "no-repeat",
-                  }}
-                />
-                <span className="font-medium text-teal-deep">Prime</span>
-              </div>
-
-              <div className="flex items-center gap-1.5">
-                <span
-                  aria-hidden="true"
-                  className="inline-block w-4 border-t-[1.5px] border-dashed border-sun"
-                />
-                <span className="text-ink-muted">Sunrise &amp; sunset</span>
-              </div>
-            </div>
-
-            <div className="flex items-center gap-4 whitespace-nowrap sm:gap-5">
-              <div className="flex items-center gap-1.5">
-                <span
-                  aria-hidden="true"
-                  className="inline-block h-2.5 w-2.5 rounded-full border border-white bg-teal-solid ring-1 ring-ink/15 dark:border-[#e6eeed]"
-                />
-                <span className="text-ink-muted">Peak</span>
-              </div>
-
-              {currentCondition && (
-                <div className="flex items-center gap-1.5">
-                  <span
-                    aria-hidden="true"
-                    className="inline-block h-[2px] w-3.5 bg-sun"
-                  />
-                  <span className="text-ink-muted">Now</span>
-                </div>
-              )}
-            </div>
-          </div>
-        )}
-      </div>
+      {/* Fixed-height Unified Legend / Live Readout Strip */}
+      <OutlookReadoutStrip
+        inspection={inspection}
+        onClearInspection={() => setInspection(null)}
+        hasCurrentCondition={currentCondition !== null}
+      />
 
       {/* Scrollable 14-Day Matrix (full width on lg+, sticky left time axis on mobile) */}
       <div className="relative px-2 pt-3 pb-3 sm:px-5 sm:pt-4 sm:pb-4">
@@ -639,13 +418,7 @@ export function TideOutlookMatrix({
                 >
                   {days.map((day, idx) => {
                     const isSelected = day.dateKey === selectedDateKey;
-                    const background = buildScoreGradient(
-                      day.scores,
-                      startMinute,
-                      endMinute,
-                      "to bottom",
-                      false,
-                    );
+                    const background = columnGradients[idx];
 
                     const sunrisePct =
                       day.sunriseMinute !== null
@@ -823,9 +596,9 @@ export function TideOutlookMatrix({
                         title={`${day.shortDateLabel}: peak score ${scorePts} (${tierLabel(day.tier)})`}
                         style={{ backgroundColor: circleBg }}
                         className={`tabular-nums flex h-8 w-8 cursor-pointer items-center justify-center rounded-full text-xs ring-1 ring-inset ring-ink/[0.08] transition-transform hover:scale-105 ${
-                          day.peakScore >= 0.76
+                          day.peakScore >= 0.73
                             ? "font-semibold text-white dark:text-[#081515]"
-                            : day.peakScore >= 0.45
+                            : day.peakScore >= 0.51
                               ? "font-semibold text-white"
                               : scorePts >= 20
                                 ? "font-semibold text-ink"
