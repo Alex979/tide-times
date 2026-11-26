@@ -11,6 +11,7 @@ import {
   WaveIcon,
 } from "#/components/location/LocationIcons";
 import { TideOutlookMatrix } from "#/components/location/TideOutlookMatrix";
+import { ThemeToggle } from "#/components/ThemeToggle";
 import { getLocationFieldGuide } from "#/lib/location-guide";
 import { scoreToCssColor } from "#/lib/score-palette";
 import {
@@ -82,7 +83,7 @@ function LocationPage() {
               <Link
                 to="/location/$locationSlug"
                 params={{ locationSlug: FEATURED_FALLBACK_SLUG }}
-                className="rounded-lg bg-teal-deep px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-ink"
+                className="rounded-lg bg-teal-solid px-4 py-2 text-sm font-medium text-white transition-opacity hover:opacity-90"
               >
                 View Fitzgerald Marine Reserve
               </Link>
@@ -234,12 +235,16 @@ function LocationView({
             <span>Tide Times</span>
           </Link>
 
-          <div className="inline-flex items-center gap-1.5 text-xs font-medium text-ink-muted">
-            <ClockIcon className="h-3.5 w-3.5 shrink-0" />
-            <span className="sm:hidden">{tzDisplay.short}</span>
-            <span className="hidden sm:inline">
-              {tzDisplay.long} ({tzDisplay.short})
-            </span>
+          <div className="flex items-center gap-3">
+            <div className="inline-flex items-center gap-1.5 text-xs font-medium text-ink-muted">
+              <ClockIcon className="h-3.5 w-3.5 shrink-0" />
+              <span className="sm:hidden">{tzDisplay.short}</span>
+              <span className="hidden sm:inline">
+                {tzDisplay.long} ({tzDisplay.short})
+              </span>
+            </div>
+
+            <ThemeToggle />
           </div>
         </div>
       </header>
@@ -264,7 +269,7 @@ function LocationView({
                   <span
                     className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-semibold ${
                       currentCondition.tier === "prime"
-                        ? "bg-teal-deep text-white"
+                        ? "bg-teal-solid text-white"
                         : currentCondition.tier === "good"
                           ? "bg-teal-soft text-teal-deep"
                           : "border border-line bg-paper text-ink-secondary"
@@ -272,7 +277,11 @@ function LocationView({
                   >
                     <span
                       aria-hidden="true"
-                      className="inline-block h-2 w-2 rounded-full ring-1 ring-white/50"
+                      className={`inline-block h-2 w-2 rounded-full ring-1 ${
+                        currentCondition.tier === "prime"
+                          ? "ring-white/50"
+                          : "ring-ink/15"
+                      }`}
                       style={{
                         backgroundColor: scoreToCssColor(
                           currentCondition.score,

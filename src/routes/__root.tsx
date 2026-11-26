@@ -4,6 +4,8 @@ import { TanStackDevtools } from '@tanstack/react-devtools'
 
 import appCss from '../styles.css?url'
 
+const THEME_INIT_SCRIPT = `try{var s=localStorage.getItem('tide-theme');if(s==='dark'||(!s&&matchMedia('(prefers-color-scheme:dark)').matches))document.documentElement.classList.add('dark')}catch{}`
+
 export const Route = createRootRoute({
   head: () => ({
     meta: [
@@ -17,6 +19,12 @@ export const Route = createRootRoute({
       {
         name: 'theme-color',
         content: '#f2f6f5',
+        media: '(prefers-color-scheme: light)',
+      },
+      {
+        name: 'theme-color',
+        content: '#111314',
+        media: '(prefers-color-scheme: dark)',
       },
       {
         title: 'Tide Times',
@@ -47,9 +55,10 @@ export const Route = createRootRoute({
 
 function RootDocument({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en">
+    <html lang="en" suppressHydrationWarning>
       <head>
         <HeadContent />
+        <script dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }} />
       </head>
       <body className="bg-mist text-ink antialiased selection:bg-teal-soft selection:text-teal-deep">
         {children}

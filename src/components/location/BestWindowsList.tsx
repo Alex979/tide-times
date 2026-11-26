@@ -63,7 +63,7 @@ export function BestWindowsList({
                 ? "bg-teal-deep"
                 : win.tier === "good"
                   ? "bg-teal-mid"
-                  : "bg-[#88c8bf]";
+                  : "bg-teal-fair";
 
             return (
               <li key={`${win.dateKey}-${win.startMinute}`}>
@@ -73,7 +73,7 @@ export function BestWindowsList({
                   aria-current={isSelected ? "true" : undefined}
                   className={`flex w-full cursor-pointer items-center justify-between gap-3 px-2.5 py-3 text-left transition-colors ${
                     isSelected
-                      ? "my-0.5 rounded-lg bg-paper ring-1 ring-inset ring-teal-deep/25"
+                      ? "my-0.5 rounded-lg bg-paper ring-1 ring-inset ring-teal-deep/25 dark:ring-teal-deep/40"
                       : "hover:bg-paper/75"
                   }`}
                 >

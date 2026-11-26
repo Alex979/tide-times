@@ -473,7 +473,7 @@ export function TideOutlookMatrix({
               <div className="flex items-center gap-1.5">
                 <span
                   aria-hidden="true"
-                  className="inline-block h-2.5 w-2.5 rounded-full border border-white bg-teal-deep ring-1 ring-ink/15"
+                  className="inline-block h-2.5 w-2.5 rounded-full border border-white bg-teal-solid ring-1 ring-ink/15 dark:border-[#e6eeed]"
                 />
                 <span className="text-ink-muted">Peak</span>
               </div>
@@ -570,7 +570,7 @@ export function TideOutlookMatrix({
                       }`}
                       className={`group flex h-12 cursor-pointer flex-col items-center justify-center rounded-lg px-0.5 transition-colors ${
                         isSelected
-                          ? "bg-teal-deep text-white"
+                          ? "bg-teal-solid text-white"
                           : day.isWeekend
                             ? "bg-mist text-ink hover:bg-mist-deep"
                             : "text-ink hover:bg-mist"
@@ -625,7 +625,7 @@ export function TideOutlookMatrix({
                     <div
                       key={tick.hour}
                       style={{ top: `${tick.pct}%` }}
-                      className="absolute right-0 left-0 border-t border-ink/[0.07]"
+                      className="absolute right-0 left-0 border-t border-ink/[0.07] dark:border-ink/[0.11]"
                     />
                   ))}
                 </div>
@@ -703,8 +703,8 @@ export function TideOutlookMatrix({
                         onClick={(e) => handleMouseClick(e, day)}
                         className={`relative h-full cursor-pointer overflow-hidden rounded-xl ${
                           isSelected
-                            ? "ring-2 ring-teal-deep ring-offset-2 ring-offset-paper"
-                            : "ring-1 ring-ink/[0.06] hover:ring-ink/25"
+                            ? "ring-2 ring-teal-deep ring-offset-2 ring-offset-paper dark:ring-teal-deep/75"
+                            : "ring-1 ring-ink/[0.06] hover:ring-ink/25 dark:ring-ink/[0.08] dark:hover:ring-ink/30"
                         }`}
                         style={{ background }}
                       >
@@ -713,7 +713,7 @@ export function TideOutlookMatrix({
                           <div
                             aria-hidden="true"
                             style={{ height: `${sunrisePct}%` }}
-                            className="pointer-events-none absolute top-0 right-0 left-0 bg-[#cfddda]/65"
+                            className="pointer-events-none absolute top-0 right-0 left-0 bg-dusk-shade"
                           />
                         )}
 
@@ -722,7 +722,7 @@ export function TideOutlookMatrix({
                           <div
                             aria-hidden="true"
                             style={{ top: `${sunsetPct}%` }}
-                            className="pointer-events-none absolute right-0 bottom-0 left-0 bg-[#cfddda]/65"
+                            className="pointer-events-none absolute right-0 bottom-0 left-0 bg-dusk-shade"
                           />
                         )}
 
@@ -734,9 +734,9 @@ export function TideOutlookMatrix({
                             className="pointer-events-none absolute left-1/2 z-10 -translate-x-1/2 -translate-y-1/2"
                           >
                             <span
-                              className={`block rounded-full border-[1.5px] border-white shadow-[0_1px_2px_rgba(13,32,38,0.35)] ${
+                              className={`block rounded-full border-[1.5px] border-white shadow-[0_1px_2px_rgba(13,32,38,0.35)] dark:border-[#e6eeed] dark:shadow-[0_1px_3px_rgba(0,0,0,0.55)] ${
                                 day.bestWindow?.tier === "prime"
-                                  ? "h-2.5 w-2.5 bg-teal-deep"
+                                  ? "h-2.5 w-2.5 bg-teal-solid"
                                   : "h-2 w-2 bg-teal-mid"
                               }`}
                             />
@@ -778,8 +778,8 @@ export function TideOutlookMatrix({
                     <path
                       d={horizonCurves.sunrisePath}
                       fill="none"
-                      stroke="#c47616"
-                      strokeOpacity="0.65"
+                      stroke="var(--color-sun)"
+                      strokeOpacity="0.7"
                       strokeWidth="1.25"
                       strokeDasharray="3 3"
                       vectorEffect="non-scaling-stroke"
@@ -789,8 +789,8 @@ export function TideOutlookMatrix({
                     <path
                       d={horizonCurves.sunsetPath}
                       fill="none"
-                      stroke="#c47616"
-                      strokeOpacity="0.65"
+                      stroke="var(--color-sun)"
+                      strokeOpacity="0.7"
                       strokeWidth="1.25"
                       strokeDasharray="3 3"
                       vectorEffect="non-scaling-stroke"

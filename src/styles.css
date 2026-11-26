@@ -1,11 +1,13 @@
 @import "tailwindcss";
 
+@custom-variant dark (&:where(.dark, .dark *));
+
 @theme static {
   /* Fonts */
   --font-display: "Bricolage Grotesque", ui-sans-serif, system-ui, -apple-system, sans-serif;
   --font-sans: "Instrument Sans", ui-sans-serif, system-ui, -apple-system, sans-serif;
 
-  /* Coastal mineral & intertidal palette */
+  /* Coastal mineral & intertidal palette (light defaults) */
   --color-mist: #f2f6f5;
   --color-mist-deep: #e4edea;
   --color-paper: #ffffff;
@@ -24,11 +26,56 @@
 
   /* Functional accents */
   --color-teal-deep: #0b4f5c;
+  --color-teal-solid: #0b4f5c;
   --color-teal-mid: #1a837e;
+  --color-teal-fair: #68b4ab;
   --color-teal-soft: #dff2ef;
   --color-sun: #c47616;
   --color-sun-soft: #fbf1e2;
   --color-night: #d8e3e1;
+
+  /* Chart visualization surfaces */
+  --color-dusk-shade: rgba(207, 221, 218, 0.65);
+  --color-chart-day: #ffffff;
+  --color-chart-night: #e2ecea;
+  --color-chart-curve: #5b767e;
+}
+
+:root {
+  color-scheme: light;
+}
+
+:root.dark {
+  color-scheme: dark;
+
+  --color-mist: #111314;
+  --color-mist-deep: #222628;
+  --color-paper: #181b1c;
+  --color-line: #2d3234;
+  --color-line-subtle: #232729;
+
+  --color-ink: #eceeed;
+  --color-ink-secondary: #a7adaf;
+  --color-ink-muted: #848b8d;
+
+  --color-score-low: #202426;
+  --color-score-fair: #243e40;
+  --color-score-good: #266464;
+  --color-score-high: #2e8780;
+
+  --color-teal-deep: #55ada6;
+  --color-teal-solid: #216366;
+  --color-teal-mid: #3a8f89;
+  --color-teal-fair: #4c8c89;
+  --color-teal-soft: #1d2d2e;
+  --color-sun: #d49547;
+  --color-sun-soft: #272017;
+  --color-night: #121516;
+
+  --color-dusk-shade: rgba(10, 12, 13, 0.5);
+  --color-chart-day: #1d2022;
+  --color-chart-night: #121415;
+  --color-chart-curve: #7b8689;
 }
 
 * {

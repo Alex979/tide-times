@@ -42,7 +42,7 @@ type ScrubState = {
 function badgeClasses(tier: QualityTier): string {
   switch (tier) {
     case "prime":
-      return "bg-teal-deep text-white";
+      return "bg-teal-solid text-white";
     case "good":
       return "bg-teal-soft text-teal-deep";
     case "fair":
@@ -392,15 +392,15 @@ export function DayTideChart({
         ) : (
           <div className="flex items-center gap-4 whitespace-nowrap text-ink-muted">
             <span className="inline-flex items-center gap-1.5">
-              <span className="inline-block h-2.5 w-2.5 rounded-xs border border-line bg-paper" />
+              <span className="inline-block h-2.5 w-2.5 rounded-xs border border-line bg-chart-day" />
               Daylight
             </span>
             <span className="inline-flex items-center gap-1.5">
-              <span className="inline-block h-2.5 w-2.5 rounded-xs bg-sun-soft ring-1 ring-sun/25" />
+              <span className="inline-block h-2.5 w-2.5 rounded-xs bg-sun-soft ring-1 ring-sun/30" />
               Twilight
             </span>
             <span className="inline-flex items-center gap-1.5">
-              <span className="inline-block h-2.5 w-2.5 rounded-xs bg-mist-deep" />
+              <span className="inline-block h-2.5 w-2.5 rounded-xs bg-chart-night ring-1 ring-inset ring-ink/15" />
               Night
             </span>
           </div>
@@ -430,20 +430,27 @@ export function DayTideChart({
           >
             <defs>
               <linearGradient id="tide-water-fill" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor="#486870" stopOpacity="0.11" />
-                <stop offset="100%" stopColor="#486870" stopOpacity="0.01" />
+                <stop offset="0%" stopColor="var(--color-chart-curve)" stopOpacity="0.14" />
+                <stop offset="100%" stopColor="var(--color-chart-curve)" stopOpacity="0.01" />
               </linearGradient>
             </defs>
 
-            {/* Night & Twilight Shading Bands */}
+            {/* Daylight base + Night & Twilight Shading Bands */}
+            <rect
+              x={padL}
+              y={padT}
+              width={plotW}
+              height={plotH}
+              fill="var(--color-chart-day)"
+            />
             {dawnX !== null && (
               <rect
                 x={padL}
                 y={padT}
                 width={Math.max(0, dawnX - padL)}
                 height={plotH}
-                fill="#e2ecea"
-                fillOpacity="0.72"
+                fill="var(--color-chart-night)"
+                fillOpacity="0.88"
               />
             )}
             {dawnX !== null && sunriseX !== null && sunriseX > dawnX && (
@@ -452,8 +459,8 @@ export function DayTideChart({
                 y={padT}
                 width={sunriseX - dawnX}
                 height={plotH}
-                fill="#fbf1e2"
-                fillOpacity="0.82"
+                fill="var(--color-sun-soft)"
+                fillOpacity="0.85"
               />
             )}
             {sunsetX !== null && duskX !== null && duskX > sunsetX && (
@@ -462,8 +469,8 @@ export function DayTideChart({
                 y={padT}
                 width={duskX - sunsetX}
                 height={plotH}
-                fill="#fbf1e2"
-                fillOpacity="0.82"
+                fill="var(--color-sun-soft)"
+                fillOpacity="0.85"
               />
             )}
             {duskX !== null && (
@@ -472,8 +479,8 @@ export function DayTideChart({
                 y={padT}
                 width={Math.max(0, padL + plotW - duskX)}
                 height={plotH}
-                fill="#e2ecea"
-                fillOpacity="0.72"
+                fill="var(--color-chart-night)"
+                fillOpacity="0.88"
               />
             )}
 
@@ -486,17 +493,12 @@ export function DayTideChart({
               const isPrime = win.tier === "prime";
               const isGood = win.tier === "good";
 
-              const fill = isPrime
-                ? "#0a4b59"
+              const bandColor = isPrime
+                ? "var(--color-score-high)"
                 : isGood
-                  ? "#17827c"
-                  : "#6dbbb2";
-              const fillOpacity = isPrime ? 0.14 : isGood ? 0.11 : 0.13;
-              const capColor = isPrime
-                ? "#0a4b59"
-                : isGood
-                  ? "#17827c"
-                  : "#78bfb6";
+                  ? "var(--color-score-good)"
+                  : "var(--color-teal-fair)";
+              const fillOpacity = isPrime ? 0.14 : isGood ? 0.12 : 0.14;
 
               const labelText = `${tierLabel(win.tier)} ${scoreToPoints(win.peakScore)}`;
               const pillW = Math.max(66, labelText.length * 6.8 + 14);
@@ -514,7 +516,7 @@ export function DayTideChart({
                     y={padT}
                     width={bandW}
                     height={plotH}
-                    fill={fill}
+                    fill={bandColor}
                     fillOpacity={fillOpacity}
                   />
                   <line
@@ -522,7 +524,7 @@ export function DayTideChart({
                     x2={x1}
                     y1={padT}
                     y2={padT + plotH}
-                    stroke={capColor}
+                    stroke={bandColor}
                     strokeOpacity={0.5}
                     strokeWidth={1}
                     strokeDasharray="3 2"
@@ -532,7 +534,7 @@ export function DayTideChart({
                     x2={x2}
                     y1={padT}
                     y2={padT + plotH}
-                    stroke={capColor}
+                    stroke={bandColor}
                     strokeOpacity={0.5}
                     strokeWidth={1}
                     strokeDasharray="3 2"
@@ -543,7 +545,7 @@ export function DayTideChart({
                     width={bandW}
                     height={3.5}
                     rx={1.5}
-                    fill={capColor}
+                    fill={bandColor}
                   />
                   <rect
                     x={pillX}
@@ -552,9 +554,13 @@ export function DayTideChart({
                     height={pillH}
                     rx={10}
                     fill={
-                      isPrime ? "#0a4b59" : isGood ? "#dff2ef" : "#e4edea"
+                      isPrime
+                        ? "var(--color-teal-solid)"
+                        : isGood
+                          ? "var(--color-teal-soft)"
+                          : "var(--color-mist-deep)"
                     }
-                    stroke={isPrime ? "none" : capColor}
+                    stroke={isPrime ? "none" : bandColor}
                     strokeOpacity={0.35}
                     strokeWidth={1}
                   />
@@ -565,7 +571,7 @@ export function DayTideChart({
                     fontSize={11}
                     fontWeight={600}
                     className="tabular-nums"
-                    fill={isPrime ? "#ffffff" : "#0b4f5c"}
+                    fill={isPrime ? "#ffffff" : "var(--color-teal-deep)"}
                   >
                     {labelText}
                   </text>
@@ -584,7 +590,9 @@ export function DayTideChart({
                     x2={padL + plotW}
                     y1={y}
                     y2={y}
-                    stroke={isZero ? "#0b4f5c" : "#d0dfdc"}
+                    stroke={
+                      isZero ? "var(--color-teal-deep)" : "var(--color-line)"
+                    }
                     strokeOpacity={isZero ? 0.45 : 0.7}
                     strokeWidth={isZero ? 1.1 : 0.85}
                     strokeDasharray={isZero ? "4 3" : undefined}
@@ -596,7 +604,11 @@ export function DayTideChart({
                     fontSize={11.5}
                     fontWeight={isZero ? 600 : 500}
                     className="tabular-nums"
-                    fill={isZero ? "#0b4f5c" : "#587078"}
+                    fill={
+                      isZero
+                        ? "var(--color-teal-deep)"
+                        : "var(--color-ink-muted)"
+                    }
                   >
                     {ft === 0 ? "0'" : `${ft}'`}
                   </text>
@@ -611,8 +623,8 @@ export function DayTideChart({
                 x2={sunriseX}
                 y1={padT}
                 y2={padT + plotH}
-                stroke="#c47616"
-                strokeOpacity="0.45"
+                stroke="var(--color-sun)"
+                strokeOpacity="0.5"
                 strokeWidth="1"
                 strokeDasharray="2 3"
               />
@@ -623,8 +635,8 @@ export function DayTideChart({
                 x2={sunsetX}
                 y1={padT}
                 y2={padT + plotH}
-                stroke="#c47616"
-                strokeOpacity="0.45"
+                stroke="var(--color-sun)"
+                strokeOpacity="0.5"
                 strokeWidth="1"
                 strokeDasharray="2 3"
               />
@@ -636,7 +648,7 @@ export function DayTideChart({
               <path
                 d={curvePath}
                 fill="none"
-                stroke="#5b767e"
+                stroke="var(--color-chart-curve)"
                 strokeWidth="1.9"
                 strokeLinecap="round"
                 strokeLinejoin="round"
@@ -649,10 +661,10 @@ export function DayTideChart({
                 fill="none"
                 stroke={
                   seg.tier === "prime"
-                    ? "#0a4b59"
+                    ? "var(--color-score-high)"
                     : seg.tier === "good"
-                      ? "#17827c"
-                      : "#5aa89f"
+                      ? "var(--color-score-good)"
+                      : "var(--color-teal-fair)"
                 }
                 strokeWidth="3.4"
                 strokeLinecap="round"
@@ -682,8 +694,8 @@ export function DayTideChart({
                     cx={cx}
                     cy={cy}
                     r={3.2}
-                    fill="#ffffff"
-                    stroke="#486870"
+                    fill="var(--color-paper)"
+                    stroke="var(--color-chart-curve)"
                     strokeWidth={1.75}
                   />
                   <text
@@ -693,8 +705,12 @@ export function DayTideChart({
                     fontSize={11.5}
                     fontWeight={600}
                     className="tabular-nums"
-                    fill="#3a525a"
-                    stroke="#ffffff"
+                    fill="var(--color-ink-secondary)"
+                    stroke={
+                      ext.isDaylight
+                        ? "var(--color-chart-day)"
+                        : "var(--color-chart-night)"
+                    }
                     strokeWidth={3.5}
                     strokeLinejoin="round"
                     style={{ paintOrder: "stroke" }}
@@ -715,15 +731,19 @@ export function DayTideChart({
                     cx={px}
                     cy={py}
                     r={6.5}
-                    fill="#0a4b59"
-                    fillOpacity={0.18}
+                    fill="var(--color-score-high)"
+                    fillOpacity={0.22}
                   />
                   <circle
                     cx={px}
                     cy={py}
                     r={4.2}
-                    fill={win.tier === "prime" ? "#0a4b59" : "#17827c"}
-                    stroke="#ffffff"
+                    fill={
+                      win.tier === "prime"
+                        ? "var(--color-score-high)"
+                        : "var(--color-score-good)"
+                    }
+                    stroke="var(--color-paper)"
                     strokeWidth={1.75}
                   />
                 </g>
@@ -738,15 +758,15 @@ export function DayTideChart({
                   x2={nowX}
                   y1={padT}
                   y2={padT + plotH}
-                  stroke="#c47616"
+                  stroke="var(--color-sun)"
                   strokeWidth="1.5"
                 />
                 <circle
                   cx={nowX}
                   cy={nowY}
                   r={4.2}
-                  fill="#c47616"
-                  stroke="#ffffff"
+                  fill="var(--color-sun)"
+                  stroke="var(--color-paper)"
                   strokeWidth="1.75"
                 />
               </g>
@@ -760,7 +780,7 @@ export function DayTideChart({
                   x2={xForElapsed(scrubSlot.elapsedMinutes)}
                   y1={padT}
                   y2={padT + plotH}
-                  stroke="#0d2026"
+                  stroke="var(--color-ink)"
                   strokeOpacity="0.55"
                   strokeWidth="1.25"
                   strokeDasharray="3 2"
@@ -769,8 +789,8 @@ export function DayTideChart({
                   cx={xForElapsed(scrubSlot.elapsedMinutes)}
                   cy={yForHeight(scrubSlot.heightFt)}
                   r={5.2}
-                  fill="#0a4b59"
-                  stroke="#ffffff"
+                  fill="var(--color-teal-deep)"
+                  stroke="var(--color-paper)"
                   strokeWidth="2"
                 />
               </g>
@@ -782,7 +802,7 @@ export function DayTideChart({
               x2={padL + plotW}
               y1={padT + plotH}
               y2={padT + plotH}
-              stroke="#d0dfdc"
+              stroke="var(--color-line)"
               strokeWidth="1"
             />
           </svg>
@@ -813,7 +833,7 @@ export function DayTideChart({
                   style={{
                     left: `${(day.bestWindow.peakElapsed / dayDuration) * 100}%`,
                   }}
-                  className="pointer-events-none absolute top-1/2 h-2.5 w-2.5 -translate-x-1/2 -translate-y-1/2 rounded-full border-[1.5px] border-white bg-teal-deep shadow-xs"
+                  className="pointer-events-none absolute top-1/2 h-2.5 w-2.5 -translate-x-1/2 -translate-y-1/2 rounded-full border-[1.5px] border-white bg-teal-solid shadow-xs dark:border-[#e6eeed]"
                 />
               )}
 
