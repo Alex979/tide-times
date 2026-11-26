@@ -1,13 +1,10 @@
 export type PlannedFactorPreview = {
   swellSummary: string;
-  swellNote: string;
   weatherSummary: string;
-  weatherNote: string;
 };
 
 export type LocationFieldGuide = {
   region: string;
-  habitat: string;
   summary: string;
   idealThresholdNote: string;
   plannedFactors: PlannedFactorPreview;
@@ -20,16 +17,13 @@ export type LocationFieldGuide = {
 const LOCATION_GUIDES: Record<string, LocationFieldGuide> = {
   "fitzgerald-marine-reserve": {
     region: "Moss Beach, San Mateo County, California",
-    habitat: "Intertidal mudstone reef and cypress bluff",
     summary:
       "Expansive flat shale benches reveal sheltered pools, surge channels, and kelp beds when overall tide pooling conditions peak.",
     idealThresholdNote:
       "Scores currently combine tide elevation and daylight, with coastal swell and weather planned next. Plan to arrive 45 minutes before the peak window.",
     plannedFactors: {
       swellSummary: "2–3 ft WNW, 11s",
-      swellNote: "Sample preview",
       weatherSummary: "58°F, light breeze",
-      weatherNote: "Sample preview",
     },
     accessNotes: [
       "Parking along California Avenue fills quickly on sunny weekend minus tides; arrive early or park along North Lake Street.",
@@ -61,16 +55,13 @@ export function getLocationFieldGuide(slug: string): LocationFieldGuide {
 
   return {
     region: "Coastal Intertidal Zone",
-    habitat: "Rocky shoreline and tide pools",
     summary:
       "Daylight low tides expose intertidal pools and marine habitats along the rocky shore. Overall conditions depend on water level, light, and surf.",
     idealThresholdNote:
       "Scores currently combine tide elevation and daylight, with coastal swell and weather planned next. Arrive 30 to 45 minutes ahead of peak conditions.",
     plannedFactors: {
       swellSummary: "2–4 ft swell",
-      swellNote: "Sample preview",
       weatherSummary: "Coastal overcast",
-      weatherNote: "Sample preview",
     },
     accessNotes: [
       "Arrive 30 to 45 minutes ahead of peak low tide to explore while water is still receding.",

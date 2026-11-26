@@ -104,7 +104,13 @@ function LocationPage() {
     );
   }
 
-  return <LocationView data={result.data} loadedAt={loadedAt} />;
+  return (
+    <LocationView
+      key={result.data.location.slug}
+      data={result.data}
+      loadedAt={loadedAt}
+    />
+  );
 }
 
 function LocationView({
@@ -137,8 +143,10 @@ function LocationView({
   const [selectedDateKey, setSelectedDateKey] = useState<string>(defaultDateKey);
 
   useEffect(() => {
-    setSelectedDateKey(defaultDateKey);
-  }, [location.slug, defaultDateKey]);
+    setSelectedDateKey((prev) =>
+      days.some((d) => d.dateKey === prev) ? prev : defaultDateKey,
+    );
+  }, [days, defaultDateKey]);
 
   const selectedDayIndex = useMemo(() => {
     const idx = days.findIndex((d) => d.dateKey === selectedDateKey);

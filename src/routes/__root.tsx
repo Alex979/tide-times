@@ -4,7 +4,7 @@ import { TanStackDevtools } from '@tanstack/react-devtools'
 
 import appCss from '../styles.css?url'
 
-const THEME_INIT_SCRIPT = `try{var s=localStorage.getItem('tide-theme');if(s==='dark'||(!s&&matchMedia('(prefers-color-scheme:dark)').matches))document.documentElement.classList.add('dark')}catch{}`
+const THEME_INIT_SCRIPT = `var s;try{s=localStorage.getItem('tide-theme')}catch{};if(s==='dark'||(!s&&matchMedia('(prefers-color-scheme:dark)').matches))document.documentElement.classList.add('dark')`
 
 export const Route = createRootRoute({
   head: () => ({

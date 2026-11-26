@@ -6,11 +6,13 @@ export function ThemeToggle() {
   useEffect(() => {
     const mq = window.matchMedia("(prefers-color-scheme: dark)");
     const onChange = (e: MediaQueryListEvent) => {
+      let stored: string | null = null;
       try {
-        if (!localStorage.getItem(STORAGE_KEY)) {
-          document.documentElement.classList.toggle("dark", e.matches);
-        }
+        stored = localStorage.getItem(STORAGE_KEY);
       } catch {}
+      if (!stored) {
+        document.documentElement.classList.toggle("dark", e.matches);
+      }
     };
     mq.addEventListener("change", onChange);
     return () => mq.removeEventListener("change", onChange);
@@ -18,8 +20,8 @@ export function ThemeToggle() {
 
   const toggle = () => {
     const isDark = document.documentElement.classList.toggle("dark");
+    const osDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
     try {
-      const osDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
       if (isDark === osDark) localStorage.removeItem(STORAGE_KEY);
       else localStorage.setItem(STORAGE_KEY, isDark ? "dark" : "light");
     } catch {}
@@ -29,9 +31,10 @@ export function ThemeToggle() {
     <button
       type="button"
       onClick={toggle}
-      aria-label="Toggle dark mode"
       className="flex h-8 w-8 cursor-pointer items-center justify-center rounded-lg border border-line bg-paper text-ink-secondary transition-colors hover:bg-mist hover:text-ink"
     >
+      <span className="sr-only dark:hidden">Switch to dark mode</span>
+      <span className="sr-only hidden dark:inline">Switch to light mode</span>
       <svg
         viewBox="0 0 18 18"
         fill="none"

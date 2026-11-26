@@ -32,7 +32,6 @@
   --color-teal-soft: #dff2ef;
   --color-sun: #c47616;
   --color-sun-soft: #fbf1e2;
-  --color-night: #d8e3e1;
 
   /* Chart visualization surfaces */
   --color-dusk-shade: rgba(207, 221, 218, 0.65);
@@ -70,7 +69,6 @@
   --color-teal-soft: #1b2c33;
   --color-sun: #d49547;
   --color-sun-soft: #272017;
-  --color-night: #121516;
 
   --color-dusk-shade: rgba(10, 12, 13, 0.5);
   --color-chart-day: #1d2022;
@@ -100,14 +98,6 @@ body {
   margin: 0;
   background-color: var(--color-mist);
   color: var(--color-ink);
-}
-
-.font-display {
-  font-family: var(--font-display);
-}
-
-.tabular-nums {
-  font-variant-numeric: tabular-nums;
 }
 
 /* Accessible keyboard focus treatment */
