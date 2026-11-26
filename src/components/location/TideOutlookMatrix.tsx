@@ -809,7 +809,6 @@ export function TideOutlookMatrix({
                 {days.map((day) => {
                   const scorePts = scoreToPoints(day.peakScore);
                   const scoreLabel = formatScorePoints(day.peakScore);
-                  const isDarkFill = day.peakScore >= 0.45;
                   const circleBg = scoreToCssColor(day.peakScore);
 
                   return (
@@ -824,13 +823,15 @@ export function TideOutlookMatrix({
                         title={`${day.shortDateLabel}: peak score ${scorePts} (${tierLabel(day.tier)})`}
                         style={{ backgroundColor: circleBg }}
                         className={`tabular-nums flex h-8 w-8 cursor-pointer items-center justify-center rounded-full text-xs ring-1 ring-inset ring-ink/[0.08] transition-transform hover:scale-105 ${
-                          isDarkFill
-                            ? "font-semibold text-white"
-                            : scorePts >= 20
-                              ? "font-semibold text-ink"
-                              : scorePts > 0
-                                ? "font-medium text-ink-secondary"
-                                : "font-normal text-ink-muted"
+                          day.peakScore >= 0.76
+                            ? "font-semibold text-white dark:text-[#081515]"
+                            : day.peakScore >= 0.45
+                              ? "font-semibold text-white"
+                              : scorePts >= 20
+                                ? "font-semibold text-ink"
+                                : scorePts > 0
+                                  ? "font-medium text-ink-secondary"
+                                  : "font-normal text-ink-muted"
                         }`}
                       >
                         {scoreLabel}
